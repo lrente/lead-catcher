@@ -1,0 +1,39 @@
+{
+  "object": "whatsapp_business_account",
+  "entry": [
+    {
+      "id": "102290129340398",
+      "changes": [
+        {
+          "value": {
+            "messaging_product": "whatsapp",
+            "metadata": {
+              "display_phone_number": "+351 900 000 000",
+              "phone_number_id": "9999999999999999"
+            },
+            "contacts": [
+              {
+                "profile": {
+                  "name": "Miguel Costa"
+                },
+                "wa_id": "351900000000"
+              }
+            ],
+            "messages": [
+              {
+                "from": "351900000000",
+                "id": "wamid.HBgLMTIzNDU2Nzg5MDEyFQIAERgSQUJDREVGR0hJSktMTU5PUQ",
+                "timestamp": "1792594980",
+                "type": "text",
+                "text": {
+                  "body": "This tenant is not configured."
+                }
+              }
+            ]
+          },
+          "field": "messages"
+        }
+      ]
+    }
+  ]
+}

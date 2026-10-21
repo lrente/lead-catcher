@@ -1,0 +1,263 @@
+{
+  "name": "flow1-inbound",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "meta/whatsapp",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "7b6e901a-b28f-42c7-b947-a5e9836e7b6e",
+      "name": "Meta Verification Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -880,
+        -160
+      ],
+      "webhookId": "71b15eb5-1243-4882-9801-52ee264d72d7"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const expectedToken = process.env.META_VERIFY_TOKEN;\nif (!expectedToken) {\n  throw new Error('META_VERIFY_TOKEN is not configured');\n}\n\nconst request = $input.first().json;\nconst query = request.query ?? {};\nconst valid = query['hub.mode'] === 'subscribe'\n  && typeof query['hub.verify_token'] === 'string'\n  && query['hub.verify_token'] === expectedToken\n  && typeof query['hub.challenge'] === 'string';\n\nreturn [{\n  json: {\n    response_code: valid ? 200 : 403,\n    response_body: valid ? query['hub.challenge'] : ''\n  }\n}];"
+      },
+      "id": "bdc8f02a-c0d1-4c53-a050-707f1e38a29a",
+      "name": "Validate Meta Verification",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -640,
+        -160
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $json.response_body }}",
+        "options": {
+          "responseCode": "={{ $json.response_code }}"
+        }
+      },
+      "id": "8cfa4f7f-8da4-42aa-af5c-6d37c7bbc799",
+      "name": "Return Meta Verification",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        -400,
+        -160
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "meta/whatsapp",
+        "responseMode": "onReceived",
+        "options": {
+          "rawBody": true,
+          "responseCode": 200
+        }
+      },
+      "id": "c9a1a35f-31c4-44c0-9aa6-d0bca4a00830",
+      "name": "Meta Messages Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -880,
+        160
+      ],
+      "webhookId": "bf61c464-11d4-41ac-8dc0-5bc96b1b2517"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const crypto = require('crypto');\nconst secret = process.env.META_APP_SECRET;\nif (!secret) {\n  throw new Error('META_APP_SECRET is not configured');\n}\n\nconst item = $input.first();\nconst signatureHeader = item.json.headers?.['x-hub-signature-256'];\nif (typeof signatureHeader !== 'string') {\n  throw new Error('Missing X-Hub-Signature-256 header');\n}\n\nconst signatureMatch = /^sha256=([a-f0-9]{64})$/i.exec(signatureHeader);\nif (!signatureMatch) {\n  throw new Error('Invalid X-Hub-Signature-256 format');\n}\n\nconst encodedRawBody = item.binary?.data?.data;\nif (typeof encodedRawBody !== 'string') {\n  throw new Error('Raw webhook body is unavailable; enable Raw Body on the Webhook node');\n}\nconst rawBody = Buffer.from(encodedRawBody, 'base64');\nconst expectedDigest = crypto.createHmac('sha256', secret).update(rawBody).digest();\nconst receivedDigest = Buffer.from(signatureMatch[1], 'hex');\nif (expectedDigest.length !== receivedDigest.length\n    || !crypto.timingSafeEqual(expectedDigest, receivedDigest)) {\n  throw new Error('Webhook signature verification failed');\n}\n\nreturn [{ json: item.json }];"
+      },
+      "id": "864186d7-fb85-493d-8de4-985ddabcfd91",
+      "name": "Verify Meta Signature",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -640,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const output = [];\nconst payload = $input.first().json.body;\n\nfor (const entry of payload?.entry ?? []) {\n  for (const change of entry?.changes ?? []) {\n    if (change?.field !== 'messages') continue;\n    const value = change.value ?? {};\n    const phoneNumberId = value.metadata?.phone_number_id;\n    if (typeof phoneNumberId !== 'string' || !phoneNumberId) continue;\n\n    for (const message of value.messages ?? []) {\n      const waId = message.from ?? value.contacts?.find((contact) => contact.wa_id)?.wa_id;\n      if (typeof waId !== 'string' || !waId || typeof message.id !== 'string' || !message.id) continue;\n\n      const contact = value.contacts?.find((candidate) => candidate.wa_id === waId);\n      const type = typeof message.type === 'string' && message.type ? message.type : 'unknown';\n      const text = type === 'text' && typeof message.text?.body === 'string'\n        ? message.text.body\n        : `[non-text message: ${type}]`;\n      const timestamp = Number(message.timestamp);\n      if (!Number.isFinite(timestamp)) continue;\n\n      output.push({\n        json: {\n          phone_number_id: phoneNumberId,\n          wa_id: waId,\n          profile_name: contact?.profile?.name ?? null,\n          wa_message_id: message.id,\n          message_type: type,\n          message_body: text,\n          timestamp\n        }\n      });\n    }\n  }\n}\n\nreturn output;"
+      },
+      "id": "b3436f43-08c1-42e7-8792-8f36a2a318e3",
+      "name": "Extract Incoming Messages",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -400,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH tenant AS (\n    SELECT id\n    FROM tenants\n    WHERE phone_number_id = $1\n      AND active = TRUE\n), lead_upsert AS (\n    INSERT INTO leads (tenant_id, wa_id, profile_name, updated_at)\n    SELECT tenant.id, $2, $3, NOW()\n    FROM tenant\n    ON CONFLICT (tenant_id, wa_id)\n    DO UPDATE SET\n        profile_name = COALESCE(EXCLUDED.profile_name, leads.profile_name),\n        updated_at = NOW()\n    RETURNING id, tenant_id\n), message_insert AS (\n    INSERT INTO messages (lead_id, wa_message_id, direction, type, body, received_at)\n    SELECT lead_upsert.id, $4, 'inbound', $5, $6, TO_TIMESTAMP($7::double precision)\n    FROM lead_upsert\n    ON CONFLICT (wa_message_id) DO NOTHING\n    RETURNING id, lead_id\n)\nSELECT\n    EXISTS (SELECT 1 FROM message_insert) AS is_new,\n    (SELECT id FROM tenant) AS tenant_id,\n    (SELECT id FROM lead_upsert) AS lead_id,\n    (SELECT id FROM message_insert) AS message_id;",
+        "options": {
+          "queryReplacement": "={{ [$json.phone_number_id, $json.wa_id, $json.profile_name, $json.wa_message_id, $json.message_type, $json.message_body, $json.timestamp] }}"
+        }
+      },
+      "id": "dc2d521b-9ad3-4faf-82bd-9077d040fcbe",
+      "name": "Upsert Lead and Deduplicate Message",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.8,
+      "position": [
+        -160,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "23a385e7-e876-40e4-96e0-71abcf4e852d",
+              "leftValue": "={{ $json.is_new }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "baad6703-a7aa-4164-9e87-8ae281e28f71",
+      "name": "Is New Message",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        80,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "flow2-qualify",
+          "mode": "list",
+          "cachedResultName": "flow2-qualify"
+        },
+        "options": {
+          "waitForSubWorkflow": false
+        }
+      },
+      "id": "cabd0ad6-4420-4f67-8ec2-c66b8011c5b7",
+      "name": "Run flow2-qualify",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        320,
+        80
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Meta Verification Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validate Meta Verification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Meta Verification": {
+      "main": [
+        [
+          {
+            "node": "Return Meta Verification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Meta Messages Webhook": {
+      "main": [
+        [
+          {
+            "node": "Verify Meta Signature",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify Meta Signature": {
+      "main": [
+        [
+          {
+            "node": "Extract Incoming Messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Incoming Messages": {
+      "main": [
+        [
+          {
+            "node": "Upsert Lead and Deduplicate Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert Lead and Deduplicate Message": {
+      "main": [
+        [
+          {
+            "node": "Is New Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is New Message": {
+      "main": [
+        [
+          {
+            "node": "Run flow2-qualify",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "94734b26-05f1-4f97-9ea6-663fa871946a",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

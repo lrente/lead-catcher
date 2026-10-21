@@ -1,0 +1,39 @@
+{
+  "object": "whatsapp_business_account",
+  "entry": [
+    {
+      "id": "102290129340398",
+      "changes": [
+        {
+          "value": {
+            "messaging_product": "whatsapp",
+            "metadata": {
+              "display_phone_number": "+351 912 345 678",
+              "phone_number_id": "1098765432109876"
+            },
+            "statuses": [
+              {
+                "id": "wamid.HBgLMTIzNDU2Nzg5MDEyFQIAERgSRk9PQkFSQkFaU1RBVFVT",
+                "status": "delivered",
+                "timestamp": "1792594920",
+                "recipient_id": "351912345678",
+                "conversation": {
+                  "id": "abc123",
+                  "origin": {
+                    "type": "user_initiated"
+                  }
+                },
+                "pricing": {
+                  "billable": false,
+                  "pricing_model": "PMP",
+                  "category": "service"
+                }
+              }
+            ]
+          },
+          "field": "messages"
+        }
+      ]
+    }
+  ]
+}
