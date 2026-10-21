@@ -1,0 +1,14 @@
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+WORKDIR /src
+COPY WaLeads.sln ./
+COPY src/WaLeads.Core/WaLeads.Core.csproj src/WaLeads.Core/
+COPY src/WaLeads.Infrastructure/WaLeads.Infrastructure.csproj src/WaLeads.Infrastructure/
+COPY src/WaLeads.Worker/WaLeads.Worker.csproj src/WaLeads.Worker/
+RUN dotnet restore src/WaLeads.Worker/WaLeads.Worker.csproj
+COPY src/ src/
+RUN dotnet publish src/WaLeads.Worker/WaLeads.Worker.csproj --configuration Release --output /app/publish --no-restore
+
+FROM mcr.microsoft.com/dotnet/aspnet:8.0
+WORKDIR /app
+COPY --from=build /app/publish .
+ENTRYPOINT ["dotnet", "WaLeads.Worker.dll"]

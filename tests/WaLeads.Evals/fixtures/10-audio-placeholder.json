@@ -1,0 +1,8 @@
+{
+  "name": "audio-placeholder",
+  "businessName": "Restaurante Maré Alta",
+  "businessContext": "Restaurante em Setúbal. Reservas estão sujeitas a confirmação.",
+  "messages": [{ "direction": "inbound", "type": "audio", "body": "[non-text message: audio]" }],
+  "expectedIntent": "other",
+  "acceptableNextActions": ["handoff_human"]
+}

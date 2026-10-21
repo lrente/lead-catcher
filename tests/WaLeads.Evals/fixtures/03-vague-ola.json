@@ -1,0 +1,8 @@
+{
+  "name": "vague-ola",
+  "businessName": "Oficina do Bairro",
+  "businessContext": "Oficina automóvel no Porto. Tom cordial.",
+  "messages": [{ "direction": "inbound", "type": "text", "body": "Olá" }],
+  "expectedIntent": "other",
+  "acceptableNextActions": ["ask_question"]
+}

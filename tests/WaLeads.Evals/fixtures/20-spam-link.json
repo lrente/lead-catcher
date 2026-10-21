@@ -1,0 +1,8 @@
+{
+  "name": "spam-link",
+  "businessName": "Papelaria Central",
+  "businessContext": "Papelaria e reprografia em Castelo Branco.",
+  "messages": [{ "direction": "inbound", "type": "text", "body": "Ganhe um telemóvel grátis! Envie os seus dados neste link agora." }],
+  "expectedIntent": "spam",
+  "acceptableNextActions": ["ignore"]
+}

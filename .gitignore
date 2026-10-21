@@ -1,2 +1,5 @@
 .env
 !.env.example
+.tools/
+**/bin/
+**/obj/

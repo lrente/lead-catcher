@@ -1,0 +1,8 @@
+{
+  "name": "unknown-price-request",
+  "businessName": "Estúdio de Pilates",
+  "businessContext": "Estúdio de pilates em Lisboa. A equipa confirma modalidades e preços.",
+  "messages": [{ "direction": "inbound", "type": "text", "body": "Qual é o preço de uma sessão individual?" }],
+  "expectedIntent": "pricing",
+  "acceptableNextActions": ["ask_question", "handoff_human"]
+}

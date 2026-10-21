@@ -1,0 +1,8 @@
+{
+  "name": "booking-with-time",
+  "businessName": "Cabeleireiro Avenida",
+  "businessContext": "Cabeleireiro em Lisboa. Marcações dependem de disponibilidade e devem ser confirmadas pela equipa.",
+  "messages": [{ "direction": "inbound", "type": "text", "body": "Conseguem cortar-me o cabelo sábado de manhã?" }],
+  "expectedIntent": "booking",
+  "acceptableNextActions": ["propose_booking", "handoff_human", "ask_question"]
+}

@@ -1,0 +1,8 @@
+{
+  "name": "service-info",
+  "businessName": "Costura da Ana",
+  "businessContext": "Atelier de costura e arranjos de roupa em Viseu. Prazos dependem do trabalho.",
+  "messages": [{ "direction": "inbound", "type": "text", "body": "Fazem bainhas em calças de ganga?" }],
+  "expectedIntent": "info",
+  "acceptableNextActions": ["ask_question", "handoff_human"]
+}

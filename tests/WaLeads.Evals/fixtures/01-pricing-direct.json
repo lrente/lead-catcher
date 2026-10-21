@@ -1,0 +1,8 @@
+{
+  "name": "pricing-direct",
+  "businessName": "Atelier de Cerâmica",
+  "businessContext": "Atelier de cerâmica artesanal em Lisboa. O contexto não contém preços. Tom simpático e direto.",
+  "messages": [{ "direction": "inbound", "type": "text", "body": "Olá! Quanto custa uma aula de cerâmica?" }],
+  "expectedIntent": "pricing",
+  "acceptableNextActions": ["ask_question", "handoff_human"]
+}

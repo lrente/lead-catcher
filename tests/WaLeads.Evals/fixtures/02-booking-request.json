@@ -1,0 +1,8 @@
+{
+  "name": "booking-request",
+  "businessName": "Clínica do Parque",
+  "businessContext": "Clínica dentária em Coimbra. Consultas por marcação. A disponibilidade deve ser confirmada pela equipa.",
+  "messages": [{ "direction": "inbound", "type": "text", "body": "Queria marcar uma consulta para a próxima semana, têm vaga?" }],
+  "expectedIntent": "booking",
+  "acceptableNextActions": ["propose_booking", "handoff_human", "ask_question"]
+}

@@ -1,0 +1,8 @@
+{
+  "name": "spam",
+  "businessName": "Livraria do Largo",
+  "businessContext": "Livraria independente em Braga.",
+  "messages": [{ "direction": "inbound", "type": "text", "body": "Ganhe dinheiro já! Clique para receber prémio, aceda a este link." }],
+  "expectedIntent": "spam",
+  "acceptableNextActions": ["ignore"]
+}

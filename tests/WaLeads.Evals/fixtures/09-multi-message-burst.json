@@ -1,0 +1,12 @@
+{
+  "name": "multi-message-burst",
+  "businessName": "Casa das Plantas",
+  "businessContext": "Loja de plantas em Leiria. A equipa informa sobre stock.",
+  "messages": [
+    { "direction": "inbound", "type": "text", "body": "Boa tarde" },
+    { "direction": "inbound", "type": "text", "body": "Estou à procura de uma planta para pouca luz" },
+    { "direction": "inbound", "type": "text", "body": "Têm alguma recomendação?" }
+  ],
+  "expectedIntent": "info",
+  "acceptableNextActions": ["ask_question", "handoff_human"]
+}

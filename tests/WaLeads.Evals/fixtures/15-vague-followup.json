@@ -1,0 +1,11 @@
+{
+  "name": "vague-followup",
+  "businessName": "Serralharia Costa",
+  "businessContext": "Serralharia em Santarém. A equipa precisa de detalhes para preparar um orçamento.",
+  "messages": [
+    { "direction": "inbound", "type": "text", "body": "Precisava de ajuda com um portão" },
+    { "direction": "inbound", "type": "text", "body": "Está avariado" }
+  ],
+  "expectedIntent": "support",
+  "acceptableNextActions": ["ask_question", "handoff_human"]
+}

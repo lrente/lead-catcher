@@ -1,0 +1,8 @@
+{
+  "name": "angry-customer",
+  "businessName": "Lavandaria Central",
+  "businessContext": "Lavandaria em Aveiro. Reclamações devem ser encaminhadas para a equipa. Tom respeitoso.",
+  "messages": [{ "direction": "inbound", "type": "text", "body": "Já passaram quatro dias e ainda não tenho a minha roupa. Isto é inaceitável!" }],
+  "expectedIntent": "support",
+  "acceptableNextActions": ["handoff_human", "ask_question"]
+}

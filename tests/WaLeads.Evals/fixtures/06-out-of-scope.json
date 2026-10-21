@@ -1,0 +1,8 @@
+{
+  "name": "out-of-scope",
+  "businessName": "Padaria da Vila",
+  "businessContext": "Padaria artesanal em Évora. Não presta serviços de aconselhamento financeiro.",
+  "messages": [{ "direction": "inbound", "type": "text", "body": "Pode dizer-me se devo investir em ações da empresa X?" }],
+  "expectedIntent": "other",
+  "acceptableNextActions": ["handoff_human", "ignore"]
+}

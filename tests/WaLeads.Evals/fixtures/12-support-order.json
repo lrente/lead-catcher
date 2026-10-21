@@ -1,0 +1,8 @@
+{
+  "name": "support-order",
+  "businessName": "Mercado do Campo",
+  "businessContext": "Mercearia com entregas locais. Problemas com encomendas são tratados pela equipa.",
+  "messages": [{ "direction": "inbound", "type": "text", "body": "A minha encomenda chegou incompleta. Como resolvemos isto?" }],
+  "expectedIntent": "support",
+  "acceptableNextActions": ["handoff_human", "ask_question"]
+}

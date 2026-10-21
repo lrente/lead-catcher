@@ -1,8 +1,9 @@
 # WhatsApp Lead Automation
 
-Phase 1 provides a self-hosted n8n inbound webhook for Meta WhatsApp Cloud
-API, PostgreSQL persistence, message deduplication, and an integration test
-script. Flow 2 is intentionally not included in this phase.
+The service includes a self-hosted n8n inbound webhook for Meta WhatsApp Cloud
+API, PostgreSQL persistence and message deduplication, plus a .NET 8
+qualification worker. The qualification worker stores draft replies only; it
+does not send WhatsApp messages.
 
 ## Setup
 
@@ -76,3 +77,78 @@ bash scripts/sign-and-send.sh tests/fixtures/valid-text-message.json
 ```
 
 Use `--bad-signature` as a second argument when testing signature rejection.
+
+## Qualification worker (Phase 2)
+
+The `qualification-worker` Compose service runs as a .NET 8 background worker.
+It claims eligible leads using a short PostgreSQL lease, waits for the message
+debounce period, loads up to 10 chronological messages, and calls the
+Anthropic Messages API. Replies and classifications are written to
+`qualifications`; no WhatsApp send operation exists in this phase.
+
+### Worker configuration
+
+Set these values in `.env` before starting the full Compose stack:
+
+| Variable | Default | Purpose |
+|---|---:|---|
+| `QUALIFICATION_DEBOUNCE_SECONDS` | `8` | Wait after the newest unprocessed inbound message before claiming its lead. |
+| `QUALIFICATION_LEASE_SECONDS` | `120` | Lead claim lease; released after processing or failure. |
+| `QUALIFICATION_MINIMUM_CONFIDENCE` | `0.6` | Lower confidence forces a human handoff. |
+| `QUALIFICATION_MAX_ATTEMPTS` | `3` | Failed qualification attempts before a poison-message handoff is stored. |
+| `ANTHROPIC_BASE_URL` | `https://api.anthropic.com` | Anthropic API base URL. |
+| `ANTHROPIC_API_KEY` | required | Anthropic API key. Keep it out of source control. |
+| `ANTHROPIC_MODEL` | required | A model ID enabled for your Anthropic account. The project intentionally sets no model name. |
+| `ANTHROPIC_TIMEOUT_SECONDS` | `25` | HTTP client timeout. |
+| `ANTHROPIC_MAX_TOKENS` | `700` | Maximum completion tokens per API attempt. |
+
+`POSTGRES_DB`, `POSTGRES_USER`, and `POSTGRES_PASSWORD` also configure the
+worker's database connection. The default per-tenant `hot_threshold` is 70;
+it is stored on `tenants` and can be changed for an individual tenant. The
+confidence threshold is configured globally. Polling starts at 2 seconds and
+backs off to 10 seconds while idle.
+
+The worker applies its EF Core migration at startup. The migration assumes the
+Phase 1 tables from `db/init/02-schema.sql` already exist; it adds qualification
+state, `messages.processed_at`, the per-tenant hot threshold, and the
+`qualifications` table. This supports a fresh Compose database (the init SQL
+runs first) and an existing Phase 1 database without replacing its data.
+
+Copy `.env.example` to `.env`, fill in `ANTHROPIC_API_KEY` and
+`ANTHROPIC_MODEL`, then run `docker compose up -d`. Add the tenant's verified
+business facts to `tenants.business_context`. A signed Flow 1 webhook message
+will be qualified after the debounce window using the real Anthropic API.
+There is no fake qualifier in the Compose worker; the fake is used only by the
+automated tests.
+
+### Tests
+
+Run unit tests and the default suite (no external LLM calls):
+
+```sh
+dotnet test WaLeads.sln
+```
+
+PostgreSQL Testcontainers integration tests use `FakeLeadQualifier` and are
+opt-in. With Docker available, run:
+
+```sh
+RUN_TESTCONTAINERS=1 dotnet test WaLeads.sln --filter Category=Integration
+```
+
+The tests cover migrations over existing Phase 1 data, debounce batching,
+messages arriving during an LLM call, concurrent workers, failures, leases,
+and tenant hot thresholds. In PowerShell, set `$env:RUN_TESTCONTAINERS = "1"`
+before running the same `dotnet test` command.
+
+The separate `tests/WaLeads.Evals` project contains 20 Portuguese conversation
+fixtures. Set Anthropic user-secrets (no key is stored in the repository):
+
+```sh
+dotnet user-secrets set "Anthropic:ApiKey" "YOUR_KEY" --project tests/WaLeads.Evals/WaLeads.Evals.csproj
+dotnet user-secrets set "Anthropic:Model" "YOUR_ACCOUNT_MODEL_ID" --project tests/WaLeads.Evals/WaLeads.Evals.csproj
+RUN_LLM_EVALS=1 dotnet test tests/WaLeads.Evals/WaLeads.Evals.csproj --filter Category=Eval
+```
+
+The eval test is skipped unless `RUN_LLM_EVALS=1` is set. It prints each
+fixture's predicted intent/action, expected values, and the total pass rate.

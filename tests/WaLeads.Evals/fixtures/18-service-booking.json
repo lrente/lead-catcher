@@ -1,0 +1,8 @@
+{
+  "name": "service-booking",
+  "businessName": "Escola de Surf Atlântico",
+  "businessContext": "Aulas de surf na Ericeira. A disponibilidade e as condições do mar são confirmadas pela equipa.",
+  "messages": [{ "direction": "inbound", "type": "text", "body": "Somos dois principiantes e queríamos ter uma aula este domingo." }],
+  "expectedIntent": "booking",
+  "acceptableNextActions": ["propose_booking", "ask_question", "handoff_human"]
+}

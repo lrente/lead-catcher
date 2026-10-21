@@ -1,0 +1,8 @@
+{
+  "name": "appointment-support",
+  "businessName": "Fisioterapia do Sul",
+  "businessContext": "Clínica de fisioterapia em Faro. Para alterar uma consulta, contactar a receção.",
+  "messages": [{ "direction": "inbound", "type": "text", "body": "Preciso de mudar a consulta que marquei para amanhã." }],
+  "expectedIntent": "support",
+  "acceptableNextActions": ["handoff_human", "ask_question"]
+}

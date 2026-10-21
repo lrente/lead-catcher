@@ -1,0 +1,8 @@
+{
+  "name": "location-question",
+  "businessName": "Oficina das Bicicletas",
+  "businessContext": "Oficina de bicicletas em Almada. A morada não está especificada; a equipa confirma-a.",
+  "messages": [{ "direction": "inbound", "type": "text", "body": "Onde fica a vossa oficina?" }],
+  "expectedIntent": "info",
+  "acceptableNextActions": ["ask_question", "handoff_human"]
+}

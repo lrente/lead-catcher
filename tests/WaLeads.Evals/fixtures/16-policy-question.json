@@ -1,0 +1,8 @@
+{
+  "name": "policy-question",
+  "businessName": "Hotel da Serra",
+  "businessContext": "A política de animais e as condições de cancelamento não estão especificadas. A equipa confirma essas informações.",
+  "messages": [{ "direction": "inbound", "type": "text", "body": "Posso levar o meu cão e cancelar sem custos?" }],
+  "expectedIntent": "info",
+  "acceptableNextActions": ["ask_question", "handoff_human"]
+}

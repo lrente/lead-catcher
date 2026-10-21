@@ -45,6 +45,30 @@ services:
     volumes:
       - n8n_data:/home/node/.n8n
 
+  qualification-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      Database__Host: postgres
+      Database__Port: 5432
+      Database__Name: ${POSTGRES_DB:-lead_automation}
+      Database__User: ${POSTGRES_USER}
+      Database__Password: ${POSTGRES_PASSWORD}
+      Anthropic__ApiKey: ${ANTHROPIC_API_KEY:?Set ANTHROPIC_API_KEY in .env}
+      Anthropic__Model: ${ANTHROPIC_MODEL:?Set ANTHROPIC_MODEL in .env}
+      Anthropic__BaseUrl: ${ANTHROPIC_BASE_URL:-https://api.anthropic.com}
+      Anthropic__TimeoutSeconds: ${ANTHROPIC_TIMEOUT_SECONDS:-25}
+      Anthropic__MaxTokens: ${ANTHROPIC_MAX_TOKENS:-700}
+      Qualification__DebounceSeconds: ${QUALIFICATION_DEBOUNCE_SECONDS:-8}
+      Qualification__LeaseSeconds: ${QUALIFICATION_LEASE_SECONDS:-120}
+      Qualification__MinimumConfidence: ${QUALIFICATION_MINIMUM_CONFIDENCE:-0.6}
+      Qualification__MaxAttempts: ${QUALIFICATION_MAX_ATTEMPTS:-3}
+
   caddy:
     image: caddy:2-alpine
     restart: unless-stopped

@@ -1,0 +1,8 @@
+{
+  "name": "confirmed-price-context",
+  "businessName": "Aulas de Guitarra",
+  "businessContext": "Aulas individuais de guitarra custam 30 € por sessão de 45 minutos. Tom informal.",
+  "messages": [{ "direction": "inbound", "type": "text", "body": "Quanto custa a aula individual?" }],
+  "expectedIntent": "pricing",
+  "acceptableNextActions": ["ask_question", "propose_booking", "handoff_human"]
+}
