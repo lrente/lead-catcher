@@ -2,8 +2,9 @@
 
 The service includes a self-hosted n8n inbound webhook for Meta WhatsApp Cloud
 API, PostgreSQL persistence and message deduplication, plus a .NET 8
-qualification worker. The qualification worker stores draft replies only; it
-does not send WhatsApp messages.
+qualification worker and a human approval API. Draft replies are sent only
+after explicit operator approval, recipient opt-in confirmation, and a check
+that the WhatsApp customer-service window is still open.
 
 ## Setup
 
@@ -84,7 +85,7 @@ The `qualification-worker` Compose service runs as a .NET 8 background worker.
 It claims eligible leads using a short PostgreSQL lease, waits for the message
 debounce period, loads up to 10 chronological messages, and calls the
 Anthropic Messages API. Replies and classifications are written to
-`qualifications`; no WhatsApp send operation exists in this phase.
+`qualifications`; Phase 2 qualification itself does not send WhatsApp messages.
 
 ### Worker configuration
 
@@ -108,11 +109,12 @@ it is stored on `tenants` and can be changed for an individual tenant. The
 confidence threshold is configured globally. Polling starts at 2 seconds and
 backs off to 10 seconds while idle.
 
-The worker applies its EF Core migration at startup. The migration assumes the
-Phase 1 tables from `db/init/02-schema.sql` already exist; it adds qualification
-state, `messages.processed_at`, the per-tenant hot threshold, and the
-`qualifications` table. This supports a fresh Compose database (the init SQL
-runs first) and an existing Phase 1 database without replacing its data.
+The worker applies its EF Core migrations at startup. They assume the Phase 1
+tables from `db/init/02-schema.sql` already exist; migrations add qualification
+state, `messages.processed_at`, the per-tenant hot threshold, the
+`qualifications` table, and Phase 3 approval/audit fields. This supports a
+fresh Compose database (the init SQL runs first) and an existing Phase 1 or
+Phase 2 database without replacing its data.
 
 Copy `.env.example` to `.env`, fill in `ANTHROPIC_API_KEY` and
 `ANTHROPIC_MODEL`, then run `docker compose up -d`. Add the tenant's verified
@@ -152,3 +154,66 @@ RUN_LLM_EVALS=1 dotnet test tests/WaLeads.Evals/WaLeads.Evals.csproj --filter Ca
 
 The eval test is skipped unless `RUN_LLM_EVALS=1` is set. It prints each
 fixture's predicted intent/action, expected values, and the total pass rate.
+
+## WhatsApp reply approval (Phase 3)
+
+The worker places `ask_question` and `propose_booking` replies in the approval
+queue. It never sends them automatically. `handoff_human` and forced handoffs
+appear in the human-review queue; `ignore` is marked actioned without sending.
+The API runs in the existing qualification-worker container and is bound to
+`127.0.0.1:8081` on the host only. It is not routed through Caddy or exposed
+publicly. Operators can call it locally or through an SSH tunnel.
+
+Set the following in `.env`:
+
+| Variable | Purpose |
+|---|---|
+| `META_ACCESS_TOKEN` | Meta access token with permission to send from each configured tenant phone-number ID. Keep it secret. |
+| `META_GRAPH_API_VERSION` | A supported Graph API version, in `vNN.N` format; choose and maintain this value for your Meta app. |
+| `WHATSAPP_TIMEOUT_SECONDS` | Outbound request timeout (default `25`). |
+| `APPROVAL_API_TOKEN` | Random bearer token of at least 32 bytes. Never commit it. |
+
+The Compose service requires these settings and the worker applies the
+additive approval migrations at startup. One access token is shared by this
+MVP across configured tenants; verify that it is authorized for every
+`tenants.phone_number_id` you use.
+
+Use the API with an `Authorization: Bearer` header. For example, in a shell
+with `APPROVAL_API_TOKEN` set:
+
+```sh
+curl -H "Authorization: Bearer $APPROVAL_API_TOKEN" \
+  http://127.0.0.1:8081/api/approvals
+```
+
+Approve a draft only after verifying the recipient has opted in. The
+confirmation is required in the request and its timestamp is persisted for
+audit:
+
+```sh
+curl -X POST \
+  -H "Authorization: Bearer $APPROVAL_API_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"recipientOptInConfirmed":true}' \
+  http://127.0.0.1:8081/api/approvals/QUALIFICATION_ID/approve
+```
+
+`POST /api/approvals/{id}/reject` rejects a pending draft without sending.
+`POST /api/approvals/{id}/resolve` closes a human-review item. The API rechecks
+the latest inbound message immediately before sending. If there is no inbound
+message within the last 24 hours, approval is not sent; the item is instead
+marked for human review (`outside_customer_service_window`). This phase does
+not support approved message templates or sending outside that window.
+
+WhatsApp Cloud API send requests are non-retried to avoid accidental duplicate
+messages. If the send outcome cannot be confirmed, the item is marked
+`send_uncertain` for operator reconciliation rather than retried automatically.
+An item left in `sending` after a process/database failure also requires manual
+reconciliation before any retry. The API logs qualification/lead/message IDs
+and error IDs, not message text or recipient phone numbers.
+
+Configure and verify the Meta access token, Graph API version, account
+permissions, recipient opt-in records, and the test phone-number IDs before
+approving a live message. The API and worker do not provide an operator
+dashboard; the bearer-authenticated HTTP endpoints are the review interface
+for this phase.

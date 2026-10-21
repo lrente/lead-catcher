@@ -87,8 +87,16 @@ public sealed class LeadDbContext(DbContextOptions<LeadDbContext> options) : DbC
             entity.Property(qualification => qualification.OutputTokens).HasColumnName("output_tokens");
             entity.Property(qualification => qualification.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("now()");
             entity.Property(qualification => qualification.ActionedAt).HasColumnName("actioned_at");
+            entity.Property(qualification => qualification.ActionStatus).HasColumnName("action_status").HasDefaultValue(QualificationActionStatus.PendingApproval).IsRequired();
+            entity.Property(qualification => qualification.ActionReason).HasColumnName("action_reason");
+            entity.Property(qualification => qualification.ApprovedAt).HasColumnName("approved_at");
+            entity.Property(qualification => qualification.OptInConfirmedAt).HasColumnName("opt_in_confirmed_at");
+            entity.Property(qualification => qualification.WhatsAppMessageId).HasColumnName("whatsapp_message_id");
+            entity.Property(qualification => qualification.ActionErrorId).HasColumnName("action_error_id");
             entity.HasIndex(qualification => new { qualification.LeadId, qualification.CreatedAt })
                 .HasDatabaseName("qualifications_lead_created_idx").IsDescending(false, true);
+            entity.HasIndex(qualification => new { qualification.ActionStatus, qualification.CreatedAt })
+                .HasDatabaseName("qualifications_action_status_created_idx");
             entity.HasOne(qualification => qualification.Lead).WithMany(lead => lead.Qualifications)
                 .HasForeignKey(qualification => qualification.LeadId).OnDelete(DeleteBehavior.Cascade);
         });

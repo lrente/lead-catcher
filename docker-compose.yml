@@ -68,6 +68,13 @@ services:
       Qualification__LeaseSeconds: ${QUALIFICATION_LEASE_SECONDS:-120}
       Qualification__MinimumConfidence: ${QUALIFICATION_MINIMUM_CONFIDENCE:-0.6}
       Qualification__MaxAttempts: ${QUALIFICATION_MAX_ATTEMPTS:-3}
+      WhatsApp__AccessToken: ${META_ACCESS_TOKEN:?Set META_ACCESS_TOKEN in .env}
+      WhatsApp__GraphApiVersion: ${META_GRAPH_API_VERSION:?Set META_GRAPH_API_VERSION in .env}
+      WhatsApp__TimeoutSeconds: ${WHATSAPP_TIMEOUT_SECONDS:-25}
+      ApprovalApi__BearerToken: ${APPROVAL_API_TOKEN:?Set APPROVAL_API_TOKEN in .env}
+      ASPNETCORE_URLS: http://+:8080
+    ports:
+      - "127.0.0.1:8081:8080"
 
   caddy:
     image: caddy:2-alpine

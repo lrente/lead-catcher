@@ -64,5 +64,23 @@ public sealed class Qualification
     public int? OutputTokens { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset? ActionedAt { get; set; }
+    public string ActionStatus { get; set; } = QualificationActionStatus.PendingApproval;
+    public string? ActionReason { get; set; }
+    public DateTimeOffset? ApprovedAt { get; set; }
+    public DateTimeOffset? OptInConfirmedAt { get; set; }
+    public string? WhatsAppMessageId { get; set; }
+    public Guid? ActionErrorId { get; set; }
     public Lead Lead { get; set; } = null!;
+}
+
+public static class QualificationActionStatus
+{
+    public const string PendingApproval = "pending_approval";
+    public const string Sending = "sending";
+    public const string Sent = "sent";
+    public const string HumanReview = "human_review";
+    public const string Rejected = "rejected";
+    public const string Ignored = "ignored";
+    public const string Resolved = "resolved";
+    public const string SendUncertain = "send_uncertain";
 }

@@ -25,6 +25,8 @@ public sealed class QualificationWorkerIntegrationTests(PostgresFixture fixture)
         await using var db = fixture.CreateDbContext();
         var qualifications = await db.Qualifications.Where(item => item.LeadId == leadId).ToListAsync();
         Assert.Single(qualifications);
+        Assert.Equal(QualificationActionStatus.PendingApproval, qualifications[0].ActionStatus);
+        Assert.Null(qualifications[0].ActionedAt);
         Assert.Equal(3, await db.Messages.CountAsync(message =>
             message.LeadId == leadId && message.Direction == "inbound" && message.ProcessedAt != null));
         Assert.Equal(85, await db.Leads.Where(lead => lead.Id == leadId).Select(lead => lead.Score).SingleAsync());
@@ -112,6 +114,7 @@ public sealed class QualificationWorkerIntegrationTests(PostgresFixture fixture)
         Assert.Equal("handoff_human", qualification.NextAction);
         Assert.True(qualification.ForcedHandoff);
         Assert.Equal("llm_failure", qualification.ForcedReason);
+        Assert.Equal(QualificationActionStatus.HumanReview, qualification.ActionStatus);
         Assert.NotNull(await db.Messages.Where(message => message.LeadId == leadId)
             .Select(message => message.ProcessedAt).SingleAsync());
     }
@@ -153,6 +156,66 @@ public sealed class QualificationWorkerIntegrationTests(PostgresFixture fixture)
         Assert.True(await CreateWorker(provider).RunOnceAsync(CancellationToken.None));
         await using var db = fixture.CreateDbContext();
         Assert.Equal("hot", await db.Leads.Where(lead => lead.Id == leadId).Select(lead => lead.Stage).SingleAsync());
+    }
+
+    [IntegrationFact]
+    public async Task ApprovedReplyRequiresOptInAndPersistsOutboundMessage()
+    {
+        var leadId = await CreateLeadWithMessagesAsync(1, DateTimeOffset.UtcNow.AddMinutes(-2));
+        var fakeQualifier = new FakeLeadQualifier();
+        fakeQualifier.EnqueueResponse(FakeLeadQualifier.ValidResponse());
+        await using var provider = BuildProvider(fakeQualifier);
+        Assert.True(await CreateWorker(provider).RunOnceAsync(CancellationToken.None));
+
+        await using var db = fixture.CreateDbContext();
+        var qualification = await db.Qualifications.SingleAsync(item => item.LeadId == leadId);
+        var sender = provider.GetRequiredService<FakeWhatsAppMessageSender>();
+        var service = new QualificationApprovalService(
+            provider.GetRequiredService<IServiceScopeFactory>(),
+            sender,
+            provider.GetRequiredService<ILogger<QualificationApprovalService>>());
+
+        await service.ApproveAsync(qualification.Id, recipientOptInConfirmed: false, CancellationToken.None);
+        Assert.Equal(0, sender.Calls);
+        Assert.Equal(QualificationActionStatus.PendingApproval,
+            await db.Qualifications.Where(item => item.Id == qualification.Id).Select(item => item.ActionStatus).SingleAsync());
+
+        await service.ApproveAsync(qualification.Id, recipientOptInConfirmed: true, CancellationToken.None);
+
+        Assert.Equal(1, sender.Calls);
+        Assert.Equal(QualificationActionStatus.Sent,
+            await db.Qualifications.Where(item => item.Id == qualification.Id).Select(item => item.ActionStatus).SingleAsync());
+        Assert.NotNull(await db.Qualifications.Where(item => item.Id == qualification.Id)
+            .Select(item => item.OptInConfirmedAt).SingleAsync());
+        Assert.Equal(1, await db.Messages.CountAsync(message =>
+            message.LeadId == leadId && message.Direction == "outbound" && message.WaMessageId == "wamid-test-outbound"));
+    }
+
+    [IntegrationFact]
+    public async Task ApprovalOutsideCustomerServiceWindowCreatesHumanReviewWithoutSending()
+    {
+        var leadId = await CreateLeadWithMessagesAsync(1, DateTimeOffset.UtcNow.AddHours(-25));
+        var fakeQualifier = new FakeLeadQualifier();
+        fakeQualifier.EnqueueResponse(FakeLeadQualifier.ValidResponse());
+        await using var provider = BuildProvider(fakeQualifier);
+        Assert.True(await CreateWorker(provider).RunOnceAsync(CancellationToken.None));
+
+        await using var db = fixture.CreateDbContext();
+        var qualificationId = await db.Qualifications.Where(item => item.LeadId == leadId)
+            .Select(item => item.Id).SingleAsync();
+        var sender = provider.GetRequiredService<FakeWhatsAppMessageSender>();
+        var service = new QualificationApprovalService(
+            provider.GetRequiredService<IServiceScopeFactory>(),
+            sender,
+            provider.GetRequiredService<ILogger<QualificationApprovalService>>());
+
+        await service.ApproveAsync(qualificationId, recipientOptInConfirmed: true, CancellationToken.None);
+
+        var qualification = await db.Qualifications.SingleAsync(item => item.Id == qualificationId);
+        Assert.Equal(QualificationActionStatus.HumanReview, qualification.ActionStatus);
+        Assert.Equal("outside_customer_service_window", qualification.ActionReason);
+        Assert.NotNull(qualification.ActionedAt);
+        Assert.Equal(0, sender.Calls);
     }
 
     private async Task<long> CreateLeadWithMessagesAsync(
@@ -211,6 +274,9 @@ public sealed class QualificationWorkerIntegrationTests(PostgresFixture fixture)
         services.AddScoped<FluentValidation.IValidator<QualificationResponse>, QualificationResponseValidator>();
         services.AddScoped<QualificationResponseParser>();
         services.AddSingleton<ILeadQualifier>(fake);
+        services.AddSingleton<FakeWhatsAppMessageSender>();
+        services.AddSingleton<IWhatsAppMessageSender>(provider =>
+            provider.GetRequiredService<FakeWhatsAppMessageSender>());
         services.AddSingleton<QualificationGuard>();
         services.Configure<QualificationWorkerOptions>(options =>
         {
@@ -229,4 +295,21 @@ public sealed class QualificationWorkerIntegrationTests(PostgresFixture fixture)
             provider.GetRequiredService<QualificationGuard>(),
             provider.GetRequiredService<IOptions<QualificationWorkerOptions>>(),
             provider.GetRequiredService<ILogger<QualificationWorker>>());
+
+    private sealed class FakeWhatsAppMessageSender : IWhatsAppMessageSender
+    {
+        private int _calls;
+
+        public int Calls => Volatile.Read(ref _calls);
+
+        public Task<string> SendTextAsync(
+            string phoneNumberId,
+            string recipient,
+            string body,
+            CancellationToken cancellationToken)
+        {
+            Interlocked.Increment(ref _calls);
+            return Task.FromResult("wamid-test-outbound");
+        }
+    }
 }

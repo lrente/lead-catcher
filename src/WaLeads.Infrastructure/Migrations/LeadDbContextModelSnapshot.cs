@@ -156,9 +156,28 @@ namespace WaLeads.Infrastructure.Migrations
                         .HasColumnName("id")
                         .HasDefaultValueSql("gen_random_uuid()");
 
+                    b.Property<Guid?>("ActionErrorId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("action_error_id");
+
+                    b.Property<string>("ActionReason")
+                        .HasColumnType("text")
+                        .HasColumnName("action_reason");
+
+                    b.Property<string>("ActionStatus")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text")
+                        .HasDefaultValue("pending_approval")
+                        .HasColumnName("action_status");
+
                     b.Property<DateTimeOffset?>("ActionedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("actioned_at");
+
+                    b.Property<DateTimeOffset?>("ApprovedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("approved_at");
 
                     b.Property<decimal>("Confidence")
                         .HasPrecision(3, 2)
@@ -211,6 +230,10 @@ namespace WaLeads.Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("next_action");
 
+                    b.Property<DateTimeOffset?>("OptInConfirmedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("opt_in_confirmed_at");
+
                     b.Property<int?>("OutputTokens")
                         .HasColumnType("integer")
                         .HasColumnName("output_tokens");
@@ -233,7 +256,14 @@ namespace WaLeads.Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("suggested_reply");
 
+                    b.Property<string>("WhatsAppMessageId")
+                        .HasColumnType("text")
+                        .HasColumnName("whatsapp_message_id");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("ActionStatus", "CreatedAt")
+                        .HasDatabaseName("qualifications_action_status_created_idx");
 
                     b.HasIndex("LeadId", "CreatedAt")
                         .IsDescending(false, true)

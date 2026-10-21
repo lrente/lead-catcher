@@ -50,6 +50,22 @@ public static class DependencyInjection
             client.DefaultRequestHeaders.Add("anthropic-version", "2023-06-01");
         }).AddStandardResilienceHandler();
 
+        services.AddOptions<WhatsAppCloudOptions>()
+            .Bind(configuration.GetSection(WhatsAppCloudOptions.SectionName))
+            .Validate(options => !string.IsNullOrWhiteSpace(options.AccessToken), "WhatsApp:AccessToken is required.")
+            .Validate(options => WhatsAppCloudClient.IsGraphApiVersion(options.GraphApiVersion), "WhatsApp:GraphApiVersion must look like vNN.N.")
+            .Validate(options => options.TimeoutSeconds > 0, "WhatsApp:TimeoutSeconds must be positive.")
+            .ValidateOnStart();
+
+        services.AddHttpClient<IWhatsAppMessageSender, WhatsAppCloudClient>((provider, client) =>
+        {
+            var options = provider.GetRequiredService<IOptions<WhatsAppCloudOptions>>().Value;
+            client.BaseAddress = new Uri("https://graph.facebook.com/");
+            client.Timeout = TimeSpan.FromSeconds(options.TimeoutSeconds);
+            client.DefaultRequestHeaders.Authorization =
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", options.AccessToken);
+        });
+
         return services;
     }
 }

@@ -284,7 +284,16 @@ public sealed class QualificationWorker(
             LatencyMs = attempt.LatencyMs,
             InputTokens = attempt.InputTokens,
             OutputTokens = attempt.OutputTokens,
-            CreatedAt = now
+            CreatedAt = now,
+            ActionStatus = guarded.Response.NextAction switch
+            {
+                "ignore" => QualificationActionStatus.Ignored,
+                "handoff_human" => QualificationActionStatus.HumanReview,
+                _ => QualificationActionStatus.PendingApproval
+            },
+            ActionReason = guarded.ForcedReason
+                ?? (guarded.Response.NextAction == "handoff_human" ? "handoff_requested" : null),
+            ActionedAt = guarded.Response.NextAction is "ignore" or "handoff_human" ? now : null
         };
         lead.Score = attempt.Response.Score;
         lead.Intent = attempt.Response.Intent;
@@ -348,7 +357,10 @@ public sealed class QualificationWorker(
                     ? "Qualification failed after the configured retry limit."
                     : rawResponse,
                 LatencyMs = 0,
-                CreatedAt = DateTimeOffset.UtcNow
+                CreatedAt = DateTimeOffset.UtcNow,
+                ActionStatus = QualificationActionStatus.HumanReview,
+                ActionReason = "llm_failure",
+                ActionedAt = DateTimeOffset.UtcNow
             });
 
             if (includedMessageIds.Count > 0)

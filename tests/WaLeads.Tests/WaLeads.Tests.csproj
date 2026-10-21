@@ -23,6 +23,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\src\WaLeads.Core\WaLeads.Core.csproj" />
     <ProjectReference Include="..\..\src\WaLeads.Infrastructure\WaLeads.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\WaLeads.Worker\WaLeads.Worker.csproj" />
